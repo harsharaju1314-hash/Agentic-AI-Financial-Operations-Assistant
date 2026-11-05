@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finops_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: finops_user
+      POSTGRES_PASSWORD: finops_password
+      POSTGRES_DB: finops_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finops_user -d finops_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finops_net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: finops_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql://finops_user:finops_password@postgres:5432/finops_db
+      API_KEY: finops-secret-key-development
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-finops-transactions-archive}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml/models:/app/ml/models
+      - ./data:/app/data
+    networks:
+      - finops_net
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: finops_dashboard
+    restart: unless-stopped
+    depends_on:
+      - api
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://finops_user:finops_password@postgres:5432/finops_db
+      BACKEND_API_URL: http://api:8000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./ml/models:/app/ml/models
+    networks:
+      - finops_net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  finops_net:
+    driver: bridge

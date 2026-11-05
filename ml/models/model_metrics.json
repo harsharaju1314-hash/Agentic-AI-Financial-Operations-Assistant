@@ -1,0 +1,21 @@
+{
+  "train_samples": 9600,
+  "test_samples": 2400,
+  "ground_truth_frauds_in_test": 88,
+  "predicted_frauds_in_test": 105,
+  "precision": 0.7429,
+  "recall": 0.8864,
+  "f1_score": 0.8083,
+  "confusion_matrix": {
+    "true_negatives": 2285,
+    "false_positives": 27,
+    "false_negatives": 10,
+    "true_positives": 78
+  },
+  "model_hyperparameters": {
+    "n_estimators": 150,
+    "contamination": 0.03,
+    "high_risk_threshold": 0.75,
+    "medium_risk_threshold": 0.4
+  }
+}
